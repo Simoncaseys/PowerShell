@@ -20,7 +20,7 @@
     {
     foreach ($item in $hash)
     {
-            If ($hash.PercentFree -le 90)
+            If ($hash.PercentFree -le 20)
     {
     $Send = @{
                 'ComputerName' = $comuterName;
