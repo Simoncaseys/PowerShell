@@ -1,41 +1,47 @@
-﻿    #Gets a list of the local harddrives. Drive tyep 3 is for local hard drive
-    $Drive = Get-wmiObject -class win32_logicalDisk | Where-Object {$_.DriveType -eq 3} 
-
-    #Gets the server name
-    $comuterName = Hostname
-
-    #if the $drive array is not null is creata a hash table and put the details into it.
-    if($Drive -ne $null)
-    {
-    $hash = @{
-                'ComputerName' = $comuterName;
-                'DriveId' = $Drive.DeviceID;
-                'FreeSpace' = ([math]::Round($Drive.FreeSpace/1GB,2));
-                'Size' = ([math]::Round($Drive.Size/1GB,2)); 
-                'PercentFree' = (($Drive.FreeSpace/$Drive.Size)*100);
-    }} 
-
-    # If $hash is not null chak the percent free and it less than 20% add it to $send Hash table
-    If ($hash -ne $null)
-    {
-    foreach ($item in $hash)
-    {
-            If ($hash.PercentFree -le 20)
-    {
-    $Send = @{
-                'ComputerName' = $comuterName;
-                'DriveId' = $hash.DeviceID;
-                'FreeSpace' = $hash.FreeSpace;
-                'Size' = $Drive.Size; 
-                'PercentFree' = $hash.PercentFree;
-    }
-    }}}
+﻿      
+$driveArray = New-Object System.Collections.Generic.List[object]
+$driveArrayErr = New-Object System.Collections.Generic.List[object]
+$computer = hostname
+$Path = 
+$receversEmailAddress = 
+$EmailServer =
     
-    # If the $send has table is not null convert it to PScustomeobject and export it to csv.
-    if($send -ne $null)
+$drives  = Get-WmiObject Win32_LogicalDisk -ErrorAction Stop | Where-Object {$_.DriveType -eq 3}
+    
+foreach($drive in $drives)    {
+$driveArray.Add([pscustomobject]@{
+        Computer        = $computer
+        DriveID         = $drive.DeviceID
+        TotalSize = [math]::round($drive.Size / 1GB, 2)
+        FreeSpace = [math]::round($drive.FreeSpace  / 1GB, 2)
+        FreePct   = [math]::round($drive.FreeSpace / $drive.size, 2) * 100                                                                     
+        })
+}
+           
+         
+    foreach($item in $driveArray)   
     {
-    $results = [pscustomobject]$Send
-    $results | Export-Csv -Path C:\WorkingFolder\drivedetails.cvs
 
+    if ($driveArray.FreePct -le 20){
+        
+    $driveArrayErr.Add([pscustomobject]@{
+                    Computer        = $driveArray.Computer
+                    DriveID         = $driveArray.DriveID 
+                    'TotalSize(GB)' = $driveArray.TotalSize
+                    'FreeSpace(GB)' = $driveArray.FreeSpace
+                    'FreePct'       = $driveArray.FreePct
+                    })
+                    }
     }
-   
+    
+                 
+if($driveArrayErr-ne $null)
+{
+ $driveArray | Export-Csv "$Path"
+    
+Send-MailMessage -From "senderEmail" -Subject "$computer" -To "$receversEmailAddress" -Attachments "$Path"  -Body "Please Check $computer Server as it has alerted to a harddrive being over 80% full. Please see list Attached"  -SmtpServer $EmailServer
+
+Remove-Item "$Path"
+}      
+
+
