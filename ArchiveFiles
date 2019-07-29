@@ -1,0 +1,81 @@
+#=========================================================== Notes ==================================================================================================
+#            By Simon Casey
+#            Version 1.0 
+#            Archive Old Files.   
+#
+#   ======================================================== Proccesses =====================================================================
+# 1) Thing this script does is create a folder names after last month and current year MMMYYYY.
+# 2) Then it will find files that are from last month. It them moves them into the the folder it just created.
+# 3) It then Zips this folder in to a ziped folder so the file will look like MMYYYY.ZIP.
+# 4) It then then Deletes the first folder that it created will all the files we moved in to it.
+# 5) It then deletes searches the zip files for any files older than 6 months and deletes then.
+#
+#
+#
+# ======================================================== Variables and what they do =======================================================
+#
+# $HomeDirectory  = This is the base directory that all you files you want to work with are in
+# 
+#[int]$m = (-1) helps you get last month can be changes eg -2 will get you two months ago
+#
+# $month = (get-date).AddMonths($m).ToString('MMM') =  uses $m variable to get last month and then formats it as MMM 
+#
+# $Year = Get-Date -UFormat %Y = Gets the current year in the format YYYY
+#
+# $folderName = "$month$Year" adds the variable for the month and year together
+#
+# $FolderArray = "$HomeDirectory\MyStreamsTransactionLogs\*" = Where the files are we are working with 
+#
+# $ToPath = "$HomeDirectory\$folderName" =  Where we are going to put the files that match what we are looking for 
+#
+# $Extention = "*.trn" = The extention type we are looking for in the files
+#
+# $source = "$HomeDirectory\$folderName" = the folde3r that we are going to zip up
+#
+# $destination = "$HomeDirectory\ZIPFiles\$folderName.ZIP" =  Where the zipped file will end up 
+#
+# $oldMonths = (get-date).Month-6 = How old we are looking for to delete the zipped files. 
+#
+#
+#
+#=========================================================== Declares ======================================================================
+$HomeDirectory = 
+#Declares to create folder
+[int]$m = (-1)
+$month = (get-date).AddMonths($m).ToString('MMM') 
+$Year = Get-Date -UFormat %Y
+$folderName = "$month$Year"
+#Declare's to get file and move files
+$FolderArray = ("\*")
+$ToPath = "$HomeDirectory\$folderName"
+$Extention = "*.trn"
+$ArchiveMonth = (get-date).Month-1
+#Declares to Zip File
+$source = "$HomeDirectory\$folderName"
+$destination = "$HomeDirectory\ZIPFiles\$folderName.ZIP"
+#Declares Delete Old ZIP files 
+$oldMonths = (get-date).Month-6
+
+#=========================================================== Run Jobs=======================================================================
+
+#=========================================================== Job To Create Folder ==========================================================
+New-Item -Path $HomeDirectory\$folderName -ItemType Directory 
+
+#=========================================================== Job to move files =============================================================
+Foreach ($path in $FolderArray){
+
+Get-ChildItem -Path $path  -Include $Extention | where {$_.LastWriteTime.month -eq $ArchiveMonth } | Move-Item -Destination $ToPath
+}
+
+#=========================================================== Job to Zip Files ==============================================================
+# Adds in the Zip.net class 
+Add-Type -assembly “system.io.compression.filesystem”
+[io.compression.zipfile]::CreateFromDirectory($Source, $destination)
+
+#=========================================================== Deletes old files for last month ==============================================
+Remove-Item -Path $HomeDirectory\$folderName -Recurse 
+
+#=========================================================== Delete Old ZIP files ==========================================================
+Get-ChildItem -Path "$HomeDirectory\ZIPFiles\*" -Include '*.ZIP' | where {$_.LastWriteTime.month -eq $oldMonths } | Remove-Item 
+
+#=========================================================== End ===========================================================================
