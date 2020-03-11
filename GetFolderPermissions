@@ -1,0 +1,12 @@
+ $FolderPath = Get-ChildItem -Directory -Path $StreamsReportsFolder -Recurse 
+ $Output = @()
+ 
+ ForEach ($Folder in $FolderPath) {
+ 
+    $Acl = Get-Acl -Path $Folder.FullName
+    ForEach ($Access in $Acl.Access) {
+    $Properties = [ordered]@{'UserId' = $Access.IdentityReference; 'FolderName' = $Folder.FullName; 'Inherited' = $Access.IsInherited }
+    $Output += New-Object -TypeName PSObject -Property $Properties            
+    }
+    
+}
